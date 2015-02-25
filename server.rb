@@ -95,6 +95,47 @@ def app(cluster)
         else
           ['404', {'Content-Type' => 'text/plain'}, ['Not Found']]
         end
+      when /\/prepared\-statements\/users\/(\d+)(\/\d+)?/
+        range_start = Integer($1)
+        range_end   = range_start + ($2 ? Integer($2[1..-1]) : 1)
+
+        case env['REQUEST_METHOD']
+        when 'POST'
+          statement = session.prepare("INSERT INTO users (username, firstname, lastname, password, email, created_date) VALUES (?, ?, ?, ?, ?, ?)")
+          futures   = (range_start...range_end).map do |id|
+            username = "user-#{id}"
+            session.execute_async(
+              statement, arguments: [
+              username, "First Name #{id}", "Last Name #{id}", 'password',
+              ["#{username}@relational.com", "#{username}@nosql.com"], Time.now
+            ])
+          end
+          begin
+            Cassandra::Future.all(futures).get
+            ['200', {'Content-Type' => 'text/plain'}, ['OK']]
+          rescue Cassandra::Errors::InvalidError => e
+            ['409', {'Content-Type' => 'text/plain'}, [e.message]]
+          end
+        when 'GET'
+          statement = session.prepare("SELECT username, firstname, lastname, password, email, created_date FROM users WHERE username = ?")
+          futures   = (range_start...range_end).map do |id|
+            username = "user-#{id}"
+            session.execute_async(
+              statement, arguments: [username]
+            ).then do |rows|
+              row = rows.first
+              row && row['username']
+            end
+          end
+          begin
+            usernames = Cassandra::Future.all(futures).get
+            ['200', {'Content-Type' => 'text/plain'}, [usernames.join(',')]]
+          rescue Cassandra::Errors::InvalidError => e
+            ['409', {'Content-Type' => 'text/plain'}, [e.message]]
+          end
+        else
+          ['404', {'Content-Type' => 'text/plain'}, ['Not Found']]
+        end
       else
         ['404', {'Content-Type' => 'text/plain'}, ['Not Found']]
       end
