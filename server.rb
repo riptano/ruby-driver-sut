@@ -113,5 +113,5 @@ end
 TorqueBox::Web.run(
   rack_app: app(Cassandra.cluster),
   host: '0.0.0.0',
-  port: 6000
+  port: 8080
 ).run_from_cli

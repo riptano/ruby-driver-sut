@@ -1,18 +1,21 @@
 GEM
   remote: https://rubygems.org/
   specs:
-    cassandra-driver (2.0.1-java)
+    cassandra-driver (2.1.5-java)
       ione (~> 1.2)
-    ione (1.2.0)
-    rack (1.6.0)
-    torquebox-core (4.0.0.alpha1-java)
-    torquebox-web (4.0.0.alpha1-java)
+    ione (1.2.3)
+    rack (1.6.4)
+    torquebox-core (4.0.0.beta2-java)
+    torquebox-web (4.0.0.beta2-java)
       rack (>= 1.4.0, < 2.0)
-      torquebox-core (= 4.0.0.alpha1)
+      torquebox-core (= 4.0.0.beta2)
 
 PLATFORMS
   java
 
 DEPENDENCIES
   cassandra-driver
-  torquebox-web (= 4.0.0.alpha1)
+  torquebox-web (= 4.0.0.beta2)
+
+BUNDLED WITH
+   1.11.2
