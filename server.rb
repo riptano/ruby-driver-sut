@@ -1,117 +1,122 @@
-require 'bundler/setup'
+# encoding: utf-8
+
+#--
+# Copyright 2013-2016 DataStax, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#++
+
 require 'cassandra'
 require 'torquebox/web'
 
-def app(cluster)
-  session = cluster.connect
+module SUT
+  require_relative 'lib/utils.rb'
+  require_relative 'lib/users.rb'
 
-  Proc.new do |env|
-    begin
-      case env['REQUEST_URI']
-      when '/'
-        if env['REQUEST_METHOD'] == 'GET'
-          ['200', {'Content-Type' => 'text/plain'}, ['Hello World']]
-        else
-          ['404', {'Content-Type' => 'text/plain'}, ['Not Found']]
-        end
-      when '/cassandra'
-        if env['REQUEST_METHOD'] == 'GET'
-          session.execute('SELECT NOW() from system.local')
-          ['204', {}, []]
-        else
-          ['404', {'Content-Type' => 'text/plain'}, ['Not Found']]
-        end
-      when /\/simple\-statements\/users\/(\d+)(\/\d+)?/
-        range_start = Integer($1)
-        range_end   = range_start + ($2 ? Integer($2[1..-1]) : 1)
+  class App
+    def self.run(cluster)
+      session = cluster.connect
 
-        case env['REQUEST_METHOD']
-        when 'POST'
-          futures = (range_start...range_end).map do |id|
-            username = "user-#{id}"
-            session.execute_async(
-              "INSERT INTO videodb.users (username, firstname, lastname, password, email, created_date) VALUES (?, ?, ?, ?, ?, ?)", arguments: [
-              username, "First Name #{id}", "Last Name #{id}", 'password',
-              ["#{username}@relational.com", "#{username}@nosql.com"], Time.now
-            ])
-          end
-          begin
-            Cassandra::Future.all(futures).get
-            ['200', {'Content-Type' => 'text/plain'}, ['OK']]
-          rescue Cassandra::Errors::InvalidError => e
-            ['409', {'Content-Type' => 'text/plain'}, [e.message]]
-          end
-        when 'GET'
-          futures = (range_start...range_end).map do |id|
-            username = "user-#{id}"
-            session.execute_async(
-              "SELECT username, firstname, lastname, password, email, created_date FROM videodb.users WHERE username = ?", arguments: [username]
-            ).then do |rows|
-              row = rows.first
-              row && row['username']
-            end
-          end
-          begin
-            usernames = Cassandra::Future.all(futures).get
-            ['200', {'Content-Type' => 'text/plain'}, [usernames.join(',')]]
-          rescue Cassandra::Errors::InvalidError => e
-            ['409', {'Content-Type' => 'text/plain'}, [e.message]]
-          end
-        else
-          ['404', {'Content-Type' => 'text/plain'}, ['Not Found']]
-        end
-      when /\/prepared\-statements\/users\/(\d+)(\/\d+)?/
-        range_start = Integer($1)
-        range_end   = range_start + ($2 ? Integer($2[1..-1]) : 1)
+      Proc.new do |env|
+        begin
+          case env['REQUEST_URI']
 
-        case env['REQUEST_METHOD']
-        when 'POST'
-          statement = session.prepare("INSERT INTO videodb.users (username, firstname, lastname, password, email, created_date) VALUES (?, ?, ?, ?, ?, ?)")
-          futures   = (range_start...range_end).map do |id|
-            username = "user-#{id}"
-            session.execute_async(
-              statement, arguments: [
-              username, "First Name #{id}", "Last Name #{id}", 'password',
-              ["#{username}@relational.com", "#{username}@nosql.com"], Time.now
-            ])
+            when '/'
+              if env['REQUEST_METHOD'] == 'GET'
+                Util.ok_200('Hello World')
+              else
+                Util.not_found_404
+              end
+
+            when '/cassandra'
+              if env['REQUEST_METHOD'] == 'GET'
+                session.execute('SELECT NOW() from system.local')
+                Util.no_content_204
+              else
+                Util.not_found_404
+              end
+
+            when /\/simple\-statements\/users\/(\d+)(\/\d+)?/
+              range_start = Integer($1)
+              range_end   = range_start + ($2 ? Integer($2[1..-1]) : 1)
+
+              case env['REQUEST_METHOD']
+                when 'POST'
+                  futures = (range_start...range_end).map do |id|
+                    Users.insert_user_simple(session, id)
+                  end
+                  begin
+                    Cassandra::Future.all(futures).get
+                    Util.ok_200
+                  rescue Cassandra::Errors::InvalidError => e
+                    Util.conflict_409(e.message)
+                  end
+                when 'GET'
+                  futures = (range_start...range_end).map do |id|
+                      Users.get_user_simple(session, id)
+                    end
+                  begin
+                    usernames = Cassandra::Future.all(futures).get
+                    Util.ok_200(usernames.join(','))
+                  rescue Cassandra::Errors::InvalidError => e
+                    Util.conflict_409(e.message)
+                  end
+              else
+                Util.not_found_404
+              end
+
+            when /\/prepared\-statements\/users\/(\d+)(\/\d+)?/
+              range_start = Integer($1)
+              range_end   = range_start + ($2 ? Integer($2[1..-1]) : 1)
+
+              case env['REQUEST_METHOD']
+                when 'POST'
+                  futures = (range_start...range_end).map do |id|
+                    Users.insert_user_prepared(session, id)
+                  end
+                  begin
+                    Cassandra::Future.all(futures).get
+                    Util.ok_200
+                  rescue Cassandra::Errors::InvalidError => e
+                    Util.conflict_409(e.message)
+                  end
+                when 'GET'
+                  futures   = (range_start...range_end).map do |id|
+                    Users.get_user_prepared(session, id)
+                  end
+                  begin
+                    usernames = Cassandra::Future.all(futures).get
+                    Util.ok_200(usernames.join(','))
+                  rescue Cassandra::Errors::InvalidError => e
+                    Util.conflict_409(e.message)
+                  end
+              else
+                Util.not_found_404
+              end
+
+          else
+            Util.not_found_404
           end
-          begin
-            Cassandra::Future.all(futures).get
-            ['200', {'Content-Type' => 'text/plain'}, ['OK']]
-          rescue Cassandra::Errors::InvalidError => e
-            ['409', {'Content-Type' => 'text/plain'}, [e.message]]
-          end
-        when 'GET'
-          statement = session.prepare("SELECT username, firstname, lastname, password, email, created_date FROM videodb.users WHERE username = ?")
-          futures   = (range_start...range_end).map do |id|
-            username = "user-#{id}"
-            session.execute_async(
-              statement, arguments: [username]
-            ).then do |rows|
-              row = rows.first
-              row && row['username']
-            end
-          end
-          begin
-            usernames = Cassandra::Future.all(futures).get
-            ['200', {'Content-Type' => 'text/plain'}, [usernames.join(',')]]
-          rescue Cassandra::Errors::InvalidError => e
-            ['409', {'Content-Type' => 'text/plain'}, [e.message]]
-          end
-        else
-          ['404', {'Content-Type' => 'text/plain'}, ['Not Found']]
+        rescue => e
+          Util.server_error_500("#{e.class.name}: #{e.message}")
         end
-      else
-        ['404', {'Content-Type' => 'text/plain'}, ['Not Found']]
       end
-    rescue => e
-      ['500', {'Content-Type' => 'text/plain'}, ["#{e.class.name}: #{e.message}"]]
     end
   end
-end
 
-TorqueBox::Web.run(
-  rack_app: app(Cassandra.cluster),
-  host: '0.0.0.0',
-  port: 8080
-).run_from_cli
+  TorqueBox::Web.run(
+    rack_app: App.run(Cassandra.cluster),
+    host: '0.0.0.0',
+    port: 8080
+  ).run_from_cli
+end
