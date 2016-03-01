@@ -21,6 +21,9 @@ module SUT
     def self.ok_200(message = 'OK')
       ['200', {'Content-Type' => 'text/plain'}, [message]]
     end
+    def self.ok_200_json(message)
+      ['200', {'Content-Type' => 'application/json'}, [message.to_json]]
+    end
     def self.no_content_204
       ['204', {}, []]
     end

@@ -18,10 +18,12 @@
 
 require 'cassandra'
 require 'torquebox/web'
+require 'json'
 
 module SUT
   require_relative 'lib/utils.rb'
   require_relative 'lib/users.rb'
+  require_relative 'lib/credentials.rb'
 
   class App
     def self.run(cluster)
@@ -102,6 +104,64 @@ module SUT
                   end
               else
                 Util.not_found_404
+              end
+
+            when /\/simple\-statements\/credentials\/?(.*)?/
+              email = $1
+              case env['REQUEST_METHOD']
+                when 'POST'
+                  input = JSON.parse( env['rack.input'].read )
+                  future = Credentials.insert_credentials_simple(session, input['email'],
+                                                                 input['password'] ? input['password'] : input['email'])
+                  begin
+                    rows = future.get
+                    Util.ok_200_json(rows.first)
+                  rescue => e
+                    Util.server_error_500("#{e.class.name}: #{e.message}")
+                  end
+                when 'GET'
+                  future = Credentials.get_credentials_simple(session, email)
+                  begin
+                    rows = future.get
+                    if rows.empty?
+                      Util.not_found_404
+                    else
+                      Util.ok_200_json(rows.first)
+                    end
+                  rescue => e
+                    Util.server_error_500("#{e.class.name}: #{e.message}")
+                  end
+                else
+                  Util.not_found_404
+              end
+
+            when /\/prepared\-statements\/credentials\/?(.*)?/
+              email = $1
+              case env['REQUEST_METHOD']
+                when 'POST'
+                  input = JSON.parse( env['rack.input'].read )
+                  future = Credentials.insert_credentials_prepared(session, input['email'],
+                                                                 input['password'] ? input['password'] : input['email'])
+                  begin
+                    rows = future.get
+                    Util.ok_200_json(rows.first)
+                  rescue => e
+                    Util.server_error_500("#{e.class.name}: #{e.message}")
+                  end
+                when 'GET'
+                  future = Credentials.get_credentials_prepared(session, email)
+                  begin
+                    rows = future.get
+                    if rows.empty?
+                      Util.not_found_404
+                    else
+                      Util.ok_200_json(rows.first)
+                    end
+                  rescue => e
+                    Util.server_error_500("#{e.class.name}: #{e.message}")
+                  end
+                else
+                  Util.not_found_404
               end
 
           else
