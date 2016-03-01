@@ -21,9 +21,8 @@ require 'torquebox/web'
 require 'json'
 
 module SUT
-  require_relative 'lib/utils.rb'
-  require_relative 'lib/users.rb'
   require_relative 'lib/credentials.rb'
+  require_relative 'lib/utils.rb'
 
   class App
     def self.run(cluster)
@@ -33,84 +32,37 @@ module SUT
         begin
           case env['REQUEST_URI']
 
+            ## Basics
+
             when '/'
               if env['REQUEST_METHOD'] == 'GET'
-                Util.ok_200('Hello World')
+                begin
+                  Util.ok_200('Hello World')
+                rescue => e
+                  Util.server_error_500("#{e.class.name}: #{e.message}")
+                end
               else
                 Util.not_found_404
               end
 
             when '/cassandra'
               if env['REQUEST_METHOD'] == 'GET'
-                session.execute('SELECT NOW() from system.local')
-                Util.no_content_204
+                begin
+                  session.execute('SELECT NOW() from system.local')
+                  Util.ok_200
+                rescue => e
+                  Util.server_error_500("#{e.class.name}: #{e.message}")
+                end
               else
                 Util.not_found_404
               end
 
-            when /\/simple\-statements\/users\/(\d+)(\/\d+)?/
-              range_start = Integer($1)
-              range_end   = range_start + ($2 ? Integer($2[1..-1]) : 1)
-
-              case env['REQUEST_METHOD']
-                when 'POST'
-                  futures = (range_start...range_end).map do |id|
-                    Users.insert_user_simple(session, id)
-                  end
-                  begin
-                    Cassandra::Future.all(futures).get
-                    Util.ok_200
-                  rescue Cassandra::Errors::InvalidError => e
-                    Util.conflict_409(e.message)
-                  end
-                when 'GET'
-                  futures = (range_start...range_end).map do |id|
-                      Users.get_user_simple(session, id)
-                    end
-                  begin
-                    usernames = Cassandra::Future.all(futures).get
-                    Util.ok_200(usernames.join(','))
-                  rescue Cassandra::Errors::InvalidError => e
-                    Util.conflict_409(e.message)
-                  end
-              else
-                Util.not_found_404
-              end
-
-            when /\/prepared\-statements\/users\/(\d+)(\/\d+)?/
-              range_start = Integer($1)
-              range_end   = range_start + ($2 ? Integer($2[1..-1]) : 1)
-
-              case env['REQUEST_METHOD']
-                when 'POST'
-                  futures = (range_start...range_end).map do |id|
-                    Users.insert_user_prepared(session, id)
-                  end
-                  begin
-                    Cassandra::Future.all(futures).get
-                    Util.ok_200
-                  rescue Cassandra::Errors::InvalidError => e
-                    Util.conflict_409(e.message)
-                  end
-                when 'GET'
-                  futures   = (range_start...range_end).map do |id|
-                    Users.get_user_prepared(session, id)
-                  end
-                  begin
-                    usernames = Cassandra::Future.all(futures).get
-                    Util.ok_200(usernames.join(','))
-                  rescue Cassandra::Errors::InvalidError => e
-                    Util.conflict_409(e.message)
-                  end
-              else
-                Util.not_found_404
-              end
+            ## User Credentials
 
             when /\/simple\-statements\/credentials\/?(.*)?/
-              email = $1
               case env['REQUEST_METHOD']
                 when 'POST'
-                  input = JSON.parse( env['rack.input'].read )
+                  input = JSON.parse(env['rack.input'].read)
                   future = Credentials.insert_credentials_simple(session, input['email'],
                                                                  input['password'] ? input['password'] : input['email'])
                   begin
@@ -120,6 +72,7 @@ module SUT
                     Util.server_error_500("#{e.class.name}: #{e.message}")
                   end
                 when 'GET'
+                  email = $1
                   future = Credentials.get_credentials_simple(session, email)
                   begin
                     rows = future.get
@@ -136,10 +89,9 @@ module SUT
               end
 
             when /\/prepared\-statements\/credentials\/?(.*)?/
-              email = $1
               case env['REQUEST_METHOD']
                 when 'POST'
-                  input = JSON.parse( env['rack.input'].read )
+                  input = JSON.parse(env['rack.input'].read)
                   future = Credentials.insert_credentials_prepared(session, input['email'],
                                                                  input['password'] ? input['password'] : input['email'])
                   begin
@@ -149,6 +101,7 @@ module SUT
                     Util.server_error_500("#{e.class.name}: #{e.message}")
                   end
                 when 'GET'
+                  email = $1
                   future = Credentials.get_credentials_prepared(session, email)
                   begin
                     rows = future.get

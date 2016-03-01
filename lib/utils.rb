@@ -24,14 +24,8 @@ module SUT
     def self.ok_200_json(message)
       ['200', {'Content-Type' => 'application/json'}, [message.to_json]]
     end
-    def self.no_content_204
-      ['204', {}, []]
-    end
     def self.not_found_404
       ['404', {'Content-Type' => 'text/plain'}, ['Not Found']]
-    end
-    def self.conflict_409(message)
-      ['409', {'Content-Type' => 'text/plain'}, [message]]
     end
     def self.server_error_500(message)
       ['500', {'Content-Type' => 'text/plain'}, [message]]
