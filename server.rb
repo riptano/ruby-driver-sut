@@ -56,23 +56,15 @@ module SUT
 
           when '/'
             if env['REQUEST_METHOD'] == 'GET'
-              begin
-                Util.ok_200('Hello World')
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
-              end
+              Util.ok_200('Hello World')
             else
               Util.not_found_404
             end
 
           when '/cassandra'
             if env['REQUEST_METHOD'] == 'GET'
-              begin
-                session.execute('SELECT NOW() from system.local')
-                Util.ok_200
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
-              end
+              session.execute('SELECT NOW() from system.local')
+              Util.ok_200
             else
               Util.not_found_404
             end
@@ -85,24 +77,16 @@ module SUT
               input = JSON.parse(env['rack.input'].read)
               future = Credentials.insert_credentials_simple(session, input['email'],
                                                              input['password'] ? input['password'] : input['email'])
-              begin
-                future.get
-                Util.ok_200_json
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
-              end
+              future.get
+              Util.ok_200_json
             when 'GET'
               email = $1
               future = Credentials.get_credentials_simple(session, email)
-              begin
-                rows = future.get
-                if rows.empty?
-                  Util.not_found_404
-                else
-                  Util.ok_200_json(rows.first)
-                end
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
+              rows = future.get
+              if rows.empty?
+                Util.not_found_404
+              else
+                Util.ok_200_json(rows.first)
               end
             else
               Util.not_found_404
@@ -114,24 +98,16 @@ module SUT
               input = JSON.parse(env['rack.input'].read)
               future = Credentials.insert_credentials_prepared(session, insert_credentials, input['email'],
                                                              input['password'] ? input['password'] : input['email'])
-              begin
-                future.get
-                Util.ok_200_json
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
-              end
+              future.get
+              Util.ok_200_json
             when 'GET'
               email = $1
               future = Credentials.get_credentials_prepared(session, select_credentials, email)
-              begin
-                rows = future.get
-                if rows.empty?
-                  Util.not_found_404
-                else
-                  Util.ok_200_json(rows.first)
-                end
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
+              rows = future.get
+              if rows.empty?
+                Util.not_found_404
+              else
+                Util.ok_200_json(rows.first)
               end
             else
               Util.not_found_404
@@ -144,24 +120,16 @@ module SUT
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
               future = Videos.insert_videos_simple(session, input)
-              begin
-                future.get
-                Util.ok_200_json
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
-              end
+              future.get
+              Util.ok_200_json
             when 'GET'
               video_id = $1
               future = Videos.get_videos_simple(session, video_id)
-              begin
-                rows = future.get
-                if rows.empty?
-                  Util.not_found_404
-                else
-                  Util.ok_200_json(rows.first)
-                end
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
+              rows = future.get
+              if rows.empty?
+                Util.not_found_404
+              else
+                Util.ok_200_json(rows.first)
               end
             else
               Util.not_found_404
@@ -172,24 +140,16 @@ module SUT
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
               future = Videos.insert_videos_prepared(session, insert_videos, input)
-              begin
-                future.get
-                Util.ok_200_json
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
-              end
+              future.get
+              Util.ok_200_json
             when 'GET'
               video_id = $1
               future = Videos.get_videos_prepared(session, select_videos, video_id)
-              begin
-                rows = future.get
-                if rows.empty?
-                  Util.not_found_404
-                else
-                  Util.ok_200_json(rows.first)
-                end
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
+              rows = future.get
+              if rows.empty?
+                Util.not_found_404
+              else
+                Util.ok_200_json(rows.first)
               end
             else
               Util.not_found_404
@@ -202,25 +162,17 @@ module SUT
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
               future = VideoEvent.insert_video_event_simple(session, input)
-              begin
-                future.get
-                Util.ok_200_json
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
-              end
+              future.get
+              Util.ok_200_json
             when 'GET'
               video_id = $2
               user_id = $3
               future = VideoEvent.get_video_event_simple(session, video_id, user_id)
-              begin
-                rows = future.get
-                if rows.empty?
-                  Util.not_found_404
-                else
-                  Util.ok_200_json(rows.first)
-                end
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
+              rows = future.get
+              if rows.empty?
+                Util.not_found_404
+              else
+                Util.ok_200_json(rows.first)
               end
             else
               Util.not_found_404
@@ -231,25 +183,17 @@ module SUT
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
               future = VideoEvent.insert_video_event_prepared(session, insert_video_event, input)
-              begin
-                future.get
-                Util.ok_200_json
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
-              end
+              future.get
+              Util.ok_200_json
             when 'GET'
               video_id = $2
               user_id = $3
               future = VideoEvent.get_video_event_prepared(session, select_video_event, video_id, user_id)
-              begin
-                rows = future.get
-                if rows.empty?
-                  Util.not_found_404
-                else
-                  Util.ok_200_json(rows.first)
-                end
-              rescue => e
-                Util.server_error_500("#{e.class.name}: #{e.message}")
+              rows = future.get
+              if rows.empty?
+                Util.not_found_404
+              else
+                Util.ok_200_json(rows.first)
               end
             else
               Util.not_found_404
