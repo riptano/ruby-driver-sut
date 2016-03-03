@@ -30,8 +30,7 @@ module SUT
     def self.insert_credentials_simple(session, email, password)
       generator = Cassandra::Uuid::Generator.new
       id = generator.uuid
-      session.execute_async("INSERT INTO killrvideo.user_credentials (email, password, userid) VALUES ('#{email}', '#{password}', #{id})").get
-      session.execute_async("SELECT * FROM killrvideo.user_credentials WHERE email='#{email}'")
+      session.execute_async("INSERT INTO killrvideo.user_credentials (email, password, userid) VALUES ('#{email}', '#{password}', #{id})")
     end
 
     def self.insert_credentials_prepared(session, email, password)
@@ -39,9 +38,6 @@ module SUT
       id = generator.uuid
       insert = session.prepare('INSERT INTO killrvideo.user_credentials (email, password, userid) VALUES (?, ?, ?)')
       session.execute_async(insert, arguments: [email, password, id])
-
-      select = session.prepare('SELECT * FROM killrvideo.user_credentials WHERE email = ?')
-      session.execute_async(select, arguments: [email])
     end
   end
 end

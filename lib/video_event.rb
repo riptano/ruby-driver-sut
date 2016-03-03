@@ -38,9 +38,7 @@ module SUT
                              #{user_id},
                              '#{args['event']}',
                              #{event_timestamp},
-                             #{args['video_timestamp'].to_i})").get
-
-      session.execute_async("SELECT * FROM killrvideo.video_event WHERE videoid=#{video_id} AND userid=#{user_id}")
+                             #{args['video_timestamp'].to_i})")
     end
 
     def self.insert_video_event_prepared(session, args)
@@ -52,10 +50,7 @@ module SUT
                              VALUES (?, ?, ?, ?, ?)')
 
       session.execute_async(insert, arguments: [video_id, user_id, args['event'], event_timestamp,
-                                                args['video_timestamp'].to_i]).get
-
-      select = session.prepare('SELECT * FROM killrvideo.video_event WHERE videoid = ? AND userid = ?')
-      session.execute_async(select, arguments: [video_id, user_id])
+                                                args['video_timestamp'].to_i])
     end
   end
 end

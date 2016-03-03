@@ -61,8 +61,7 @@ module SUT
                                                      args_map,
                                                      {location_type: Cassandra::Types.int})
 
-      session.execute_async(statement).get
-      session.execute_async("SELECT * FROM killrvideo.videos WHERE videoid=#{args_map[:video_id]}")
+      session.execute_async(statement)
     end
 
     def self.insert_videos_prepared(session, args)
@@ -93,10 +92,7 @@ module SUT
                             location_id,
                             preview_thumbnails,
                             tags,
-                            added_date]).get
-
-      select = session.prepare('SELECT * FROM killrvideo.videos WHERE videoid = ?')
-      session.execute_async(select, arguments: [video_id])
+                            added_date])
     end
   end
 end

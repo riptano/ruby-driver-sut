@@ -68,8 +68,8 @@ module SUT
               future = Credentials.insert_credentials_simple(session, input['email'],
                                                              input['password'] ? input['password'] : input['email'])
               begin
-                rows = future.get
-                Util.ok_200_json(rows.first)
+                future.get
+                Util.ok_200_json
               rescue => e
                 Util.server_error_500("#{e.class.name}: #{e.message}")
               end
@@ -97,8 +97,8 @@ module SUT
               future = Credentials.insert_credentials_prepared(session, input['email'],
                                                              input['password'] ? input['password'] : input['email'])
               begin
-                rows = future.get
-                Util.ok_200_json(rows.first)
+                future.get
+                Util.ok_200_json
               rescue => e
                 Util.server_error_500("#{e.class.name}: #{e.message}")
               end
@@ -127,8 +127,8 @@ module SUT
               input = JSON.parse(env['rack.input'].read)
               future = Videos.insert_videos_simple(session, input)
               begin
-                rows = future.get
-                Util.ok_200_json(rows.first)
+                future.get
+                Util.ok_200_json
               rescue => e
                 Util.server_error_500("#{e.class.name}: #{e.message}")
               end
@@ -155,8 +155,8 @@ module SUT
               input = JSON.parse(env['rack.input'].read)
               future = Videos.insert_videos_prepared(session, input)
               begin
-                rows = future.get
-                Util.ok_200_json(rows.first)
+                future.get
+                Util.ok_200_json
               rescue => e
                 Util.server_error_500("#{e.class.name}: #{e.message}")
               end
@@ -185,8 +185,8 @@ module SUT
               input = JSON.parse(env['rack.input'].read)
               future = VideoEvent.insert_video_event_simple(session, input)
               begin
-                rows = future.get
-                Util.ok_200_json(rows.first)
+                future.get
+                Util.ok_200_json
               rescue => e
                 Util.server_error_500("#{e.class.name}: #{e.message}")
               end
@@ -214,8 +214,8 @@ module SUT
               input = JSON.parse(env['rack.input'].read)
               future = VideoEvent.insert_video_event_prepared(session, input)
               begin
-                rows = future.get
-                Util.ok_200_json(rows.first)
+                future.get
+                Util.ok_200_json
               rescue => e
                 Util.server_error_500("#{e.class.name}: #{e.message}")
               end
