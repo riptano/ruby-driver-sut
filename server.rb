@@ -23,6 +23,7 @@ require 'json'
 module SUT
   require_relative 'lib/credentials.rb'
   require_relative 'lib/videos.rb'
+  require_relative 'lib/video_event.rb'
   require_relative 'lib/utils.rb'
 
   class App
@@ -162,6 +163,66 @@ module SUT
             when 'GET'
               video_id = $1
               future = Videos.get_videos_prepared(session, video_id)
+              begin
+                rows = future.get
+                if rows.empty?
+                  Util.not_found_404
+                else
+                  Util.ok_200_json(rows.first)
+                end
+              rescue => e
+                Util.server_error_500("#{e.class.name}: #{e.message}")
+              end
+            else
+              Util.not_found_404
+            end
+
+          ## Video Event
+
+          when /simple\-statements\/video\-events(\/(.*)\/(.*))?/
+            case env['REQUEST_METHOD']
+            when 'POST'
+              input = JSON.parse(env['rack.input'].read)
+              future = VideoEvent.insert_video_event_simple(session, input)
+              begin
+                rows = future.get
+                Util.ok_200_json(rows.first)
+              rescue => e
+                Util.server_error_500("#{e.class.name}: #{e.message}")
+              end
+            when 'GET'
+              video_id = $2
+              user_id = $3
+              future = VideoEvent.get_video_event_simple(session, video_id, user_id)
+              begin
+                rows = future.get
+                if rows.empty?
+                  Util.not_found_404
+                else
+                  Util.ok_200_json(rows.first)
+                end
+              rescue => e
+                Util.server_error_500("#{e.class.name}: #{e.message}")
+              end
+            else
+              Util.not_found_404
+            end
+
+          when /prepared\-statements\/video\-events(\/(.*)\/(.*))?/
+            case env['REQUEST_METHOD']
+            when 'POST'
+              input = JSON.parse(env['rack.input'].read)
+              future = VideoEvent.insert_video_event_prepared(session, input)
+              begin
+                rows = future.get
+                Util.ok_200_json(rows.first)
+              rescue => e
+                Util.server_error_500("#{e.class.name}: #{e.message}")
+              end
+            when 'GET'
+              video_id = $2
+              user_id = $3
+              future = VideoEvent.get_video_event_prepared(session, video_id, user_id)
               begin
                 rows = future.get
                 if rows.empty?
