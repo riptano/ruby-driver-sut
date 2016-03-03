@@ -29,6 +29,24 @@ module SUT
   class App
     def self.run(cluster)
       session = cluster.connect
+      select_credentials = session.prepare('SELECT * FROM killrvideo.user_credentials WHERE email = ?')
+      insert_credentials = session.prepare('INSERT INTO killrvideo.user_credentials
+                                            (email, password, userid) VALUES (?, ?, ?)')
+      select_videos = session.prepare('SELECT * FROM killrvideo.videos WHERE videoid = ?')
+      insert_videos = session.prepare('INSERT INTO killrvideo.videos (
+                                       videoid,
+                                       userid,
+                                       name,
+                                       description,
+                                       location,
+                                       location_type,
+                                       preview_thumbnails,
+                                       tags,
+                                       added_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      select_video_event = session.prepare('SELECT * FROM killrvideo.video_event WHERE videoid = ? AND userid = ?')
+      insert_video_event = session.prepare('INSERT INTO killrvideo.video_event
+                                            (videoid, userid, event, event_timestamp, video_timestamp)
+                                            VALUES (?, ?, ?, ?, ?)')
 
       Proc.new do |env|
         begin
@@ -94,7 +112,7 @@ module SUT
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
-              future = Credentials.insert_credentials_prepared(session, input['email'],
+              future = Credentials.insert_credentials_prepared(session, insert_credentials, input['email'],
                                                              input['password'] ? input['password'] : input['email'])
               begin
                 future.get
@@ -104,7 +122,7 @@ module SUT
               end
             when 'GET'
               email = $1
-              future = Credentials.get_credentials_prepared(session, email)
+              future = Credentials.get_credentials_prepared(session, select_credentials, email)
               begin
                 rows = future.get
                 if rows.empty?
@@ -153,7 +171,7 @@ module SUT
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
-              future = Videos.insert_videos_prepared(session, input)
+              future = Videos.insert_videos_prepared(session, insert_videos, input)
               begin
                 future.get
                 Util.ok_200_json
@@ -162,7 +180,7 @@ module SUT
               end
             when 'GET'
               video_id = $1
-              future = Videos.get_videos_prepared(session, video_id)
+              future = Videos.get_videos_prepared(session, select_videos, video_id)
               begin
                 rows = future.get
                 if rows.empty?
@@ -212,7 +230,7 @@ module SUT
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
-              future = VideoEvent.insert_video_event_prepared(session, input)
+              future = VideoEvent.insert_video_event_prepared(session, insert_video_event, input)
               begin
                 future.get
                 Util.ok_200_json
@@ -222,7 +240,7 @@ module SUT
             when 'GET'
               video_id = $2
               user_id = $3
-              future = VideoEvent.get_video_event_prepared(session, video_id, user_id)
+              future = VideoEvent.get_video_event_prepared(session, select_video_event, video_id, user_id)
               begin
                 rows = future.get
                 if rows.empty?

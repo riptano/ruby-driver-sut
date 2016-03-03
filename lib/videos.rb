@@ -22,8 +22,7 @@ module SUT
       session.execute_async("SELECT * FROM killrvideo.videos WHERE videoid=#{Cassandra::Uuid.new(video_id)}")
     end
 
-    def self.get_videos_prepared(session, video_id)
-      select = session.prepare('SELECT * FROM killrvideo.videos WHERE videoid = ?')
+    def self.get_videos_prepared(session, select, video_id)
       session.execute_async(select, arguments: [Cassandra::Uuid.new(video_id)])
     end
 
@@ -64,24 +63,13 @@ module SUT
       session.execute_async(statement)
     end
 
-    def self.insert_videos_prepared(session, args)
+    def self.insert_videos_prepared(session, insert, args)
       video_id = Cassandra::Uuid.new(args['videoid'])
       user_id = Cassandra::Uuid.new(args['userid'])
       location_id = args['location_type'].to_i
       preview_thumbnails = args['preview_thumbnails'].to_h
       tags = Set.new(args['tags'])
       added_date = Time.parse(args['added_date'])
-
-      insert = session.prepare('INSERT INTO killrvideo.videos (
-                                videoid,
-                                userid,
-                                name,
-                                description,
-                                location,
-                                location_type,
-                                preview_thumbnails,
-                                tags,
-                                added_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
 
       session.execute_async(insert, arguments: [
                             video_id,

@@ -22,21 +22,20 @@ module SUT
       session.execute_async("SELECT * FROM killrvideo.user_credentials WHERE email='#{email}'")
     end
 
-    def self.get_credentials_prepared(session, email)
-      select = session.prepare('SELECT * FROM killrvideo.user_credentials WHERE email = ?')
+    def self.get_credentials_prepared(session, select, email)
       session.execute_async(select, arguments: [email])
     end
 
     def self.insert_credentials_simple(session, email, password)
       generator = Cassandra::Uuid::Generator.new
       id = generator.uuid
-      session.execute_async("INSERT INTO killrvideo.user_credentials (email, password, userid) VALUES ('#{email}', '#{password}', #{id})")
+      session.execute_async("INSERT INTO killrvideo.user_credentials
+                             (email, password, userid) VALUES ('#{email}', '#{password}', #{id})")
     end
 
-    def self.insert_credentials_prepared(session, email, password)
+    def self.insert_credentials_prepared(session, insert, email, password)
       generator = Cassandra::Uuid::Generator.new
       id = generator.uuid
-      insert = session.prepare('INSERT INTO killrvideo.user_credentials (email, password, userid) VALUES (?, ?, ?)')
       session.execute_async(insert, arguments: [email, password, id])
     end
   end

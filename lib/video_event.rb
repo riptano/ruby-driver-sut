@@ -23,8 +23,7 @@ module SUT
                              WHERE videoid=#{Cassandra::Uuid.new(video_id)} AND userid=#{Cassandra::Uuid.new(user_id)}")
     end
 
-    def self.get_video_event_prepared(session, video_id, user_id)
-      select = session.prepare('SELECT * FROM killrvideo.video_event WHERE videoid = ? AND userid = ?')
+    def self.get_video_event_prepared(session, select, video_id, user_id)
       session.execute_async(select, arguments: [Cassandra::Uuid.new(video_id), Cassandra::Uuid.new(user_id)])
     end
 
@@ -41,13 +40,10 @@ module SUT
                              #{args['video_timestamp'].to_i})")
     end
 
-    def self.insert_video_event_prepared(session, args)
+    def self.insert_video_event_prepared(session, insert, args)
       video_id = Cassandra::Uuid.new(args['videoid'])
       user_id = Cassandra::Uuid.new(args['userid'])
       event_timestamp = Cassandra::TimeUuid.new(args['event_timestamp'])
-
-      insert = session.prepare('INSERT INTO killrvideo.video_event (videoid, userid, event, event_timestamp, video_timestamp)
-                             VALUES (?, ?, ?, ?, ?)')
 
       session.execute_async(insert, arguments: [video_id, user_id, args['event'], event_timestamp,
                                                 args['video_timestamp'].to_i])
