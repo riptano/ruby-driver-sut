@@ -62,6 +62,9 @@ module SUT
 
             i -= 1
           end
+
+          # Num Errors
+          client.metrics(name + '.num_errors' => stat.num_errors)
         end
 
         sleep(interval)
@@ -70,7 +73,7 @@ module SUT
   end
 
   class App
-    def self.run(cluster)
+    def self.run(cluster, metrics)
       session = cluster.connect
       select_credentials = session.prepare('SELECT * FROM killrvideo.user_credentials WHERE email = ?')
       insert_credentials = session.prepare('INSERT INTO killrvideo.user_credentials
@@ -91,24 +94,23 @@ module SUT
                                             (videoid, userid, event, event_timestamp, video_timestamp)
                                             VALUES (?, ?, ?, ?, ?)')
 
-      metrics = Metrics.new
       client = GraphiteAPI.new(graphite: '104.197.106.246', prefix: ['sut', 'ruby-driver', '2_1_5'])
       thread = Thread.new { GraphiteThread.new.run(client, metrics, 10) }
 
       Proc.new do |env|
         begin
-          case env['REQUEST_URI']
+          uri = env['REQUEST_URI']
 
           ## Basics
 
-          when '/'
+          if uri == '/'
             if env['REQUEST_METHOD'] == 'GET'
               Util.ok_200('Hello World')
             else
               Util.not_found_404
             end
 
-          when '/cassandra'
+          elsif uri == '/cassandra'
             if env['REQUEST_METHOD'] == 'GET'
               session.execute('SELECT NOW() from system.local')
               Util.ok_200
@@ -118,7 +120,7 @@ module SUT
 
           ## User Credentials
 
-          when /\/simple\-statements\/credentials\/?(.*)?/
+          elsif (matches = /\/simple\-statements\/credentials\/?(?<email>.*)?/.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -128,9 +130,8 @@ module SUT
               metrics.record_metric('simple.insert.user_credentials', future, start_time)
               Util.ok_200_json
             when 'GET'
-              email = $1
               start_time = Time.new
-              future = Credentials.get_credentials_simple(session, email)
+              future = Credentials.get_credentials_simple(session, matches['email'])
               metrics.record_metric('simple.select.user_credentials', future, start_time)
               rows = future.get
               if rows.empty?
@@ -142,7 +143,7 @@ module SUT
               Util.not_found_404
             end
 
-          when /\/prepared\-statements\/credentials\/?(.*)?/
+          elsif (matches = /\/prepared\-statements\/credentials\/?(?<email>.*)?/.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -153,9 +154,8 @@ module SUT
               future.get
               Util.ok_200_json
             when 'GET'
-              email = $1
               start_time = Time.new
-              future = Credentials.get_credentials_prepared(session, select_credentials, email)
+              future = Credentials.get_credentials_prepared(session, select_credentials, matches['email'])
               metrics.record_metric('prepared.select.user_credentials', future, start_time)
               rows = future.get
               if rows.empty?
@@ -169,7 +169,7 @@ module SUT
 
           ## Videos
 
-          when /\/simple\-statements\/videos\/?(.*)?/
+          elsif (matches = /\/simple\-statements\/videos\/?(?<video_id>.*)?/.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -179,9 +179,8 @@ module SUT
               future.get
               Util.ok_200_json
             when 'GET'
-              video_id = $1
               start_time = Time.new
-              future = Videos.get_videos_simple(session, video_id)
+              future = Videos.get_videos_simple(session, matches['video_id'])
               metrics.record_metric('simple.select.videos', future, start_time)
               rows = future.get
               if rows.empty?
@@ -193,7 +192,7 @@ module SUT
               Util.not_found_404
             end
 
-          when /\/prepared\-statements\/videos\/?(.*)?/
+          elsif (matches = /\/prepared\-statements\/videos\/?(?<video_id>.*)?/.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -203,9 +202,8 @@ module SUT
               future.get
               Util.ok_200_json
             when 'GET'
-              video_id = $1
               start_time = Time.new
-              future = Videos.get_videos_prepared(session, select_videos, video_id)
+              future = Videos.get_videos_prepared(session, select_videos, matches['video_id'])
               metrics.record_metric('prepared.select.videos', future, start_time)
               rows = future.get
               if rows.empty?
@@ -219,7 +217,7 @@ module SUT
 
           ## Video Event
 
-          when /simple\-statements\/video\-events(\/(.*)\/(.*))?/
+          elsif (matches = /simple\-statements\/video\-events(\/(?<video_id>.*)\/(?<user_id>.*))?/.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -229,10 +227,8 @@ module SUT
               future.get
               Util.ok_200_json
             when 'GET'
-              video_id = $2
-              user_id = $3
               start_time = Time.new
-              future = VideoEvent.get_video_event_simple(session, video_id, user_id)
+              future = VideoEvent.get_video_event_simple(session, matches['video_id'], matches['user_id'])
               metrics.record_metric('simple.select.video_event', future, start_time)
               rows = future.get
               if rows.empty?
@@ -244,7 +240,7 @@ module SUT
               Util.not_found_404
             end
 
-          when /prepared\-statements\/video\-events(\/(.*)\/(.*))?/
+          elsif (matches = /prepared\-statements\/video\-events(\/(?<video_id>.*)\/(?<user_id>.*))?/.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -254,10 +250,9 @@ module SUT
               future.get
               Util.ok_200_json
             when 'GET'
-              video_id = $2
-              user_id = $3
               start_time = Time.new
-              future = VideoEvent.get_video_event_prepared(session, select_video_event, video_id, user_id)
+              future = VideoEvent.get_video_event_prepared(session, select_video_event,
+                                                           matches['video_id'], matches['user_id'])
               metrics.record_metric('prepared.select.video_event', future, start_time)
               rows = future.get
               if rows.empty?
@@ -273,14 +268,40 @@ module SUT
             Util.not_found_404
           end
         rescue => e
+          puts "#{e.class.name}: #{e.message}"
           Util.server_error_500("#{e.class.name}: #{e.message}")
         end
       end
     end
   end
 
+  metrics = Metrics.new
+  cluster = Cassandra.cluster
+
+  metrics_logger = Logger.new('/mnt/logs/metrics.log')
+  metrics_logger.formatter = proc do |severity, datetime, progname, msg|
+    msg
+  end
+
+  at_exit do
+    export_metrics = Hash.new
+
+    metrics.statistics.each_pair do |name, stat|
+      export_metrics[name] = Hash.new
+      export_metrics[name]['latency'] = stat.latency
+      export_metrics[name]['throughput'] = stat.throughput
+      export_metrics[name]['num_errors'] = stat.num_errors
+      export_metrics[name]['errors'] = stat.errors
+    end
+
+    metrics_logger.info export_metrics.to_json
+
+    cluster.close
+    metrics_logger.close
+  end
+
   TorqueBox::Web.run(
-    rack_app: App.run(Cassandra.cluster),
+    rack_app: App.run(cluster, metrics),
     host: '0.0.0.0',
     port: 8080
   ).run_from_cli

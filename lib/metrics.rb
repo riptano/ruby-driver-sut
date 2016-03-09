@@ -19,11 +19,13 @@
 module SUT
   class Metrics
     class Statistic
-      attr_accessor :throughput, :latency
+      attr_accessor :throughput, :latency, :num_errors, :errors
 
       def initialize
         @throughput = Hash.new(0)
         @latency = Hash.new { |hash, key| hash[key] = [] }
+        @num_errors = 0
+        @errors = Hash.new { |hash, key| hash[key] = [] }
       end
     end
 
@@ -49,14 +51,17 @@ module SUT
 
     def record_metric(statement, future, start_time)
       future.on_complete do |value, error|
+        curr_time = Time.new
         if value
-          curr_time = Time.new
           latency = (curr_time - start_time) * 1000
           @statistics[statement].latency[curr_time.to_i]  << latency
           @statistics[statement].throughput[curr_time.to_i] += 1
 
           value
         else
+          @statistics[statement].num_errors += 1
+          @statistics[statement].errors[curr_time.to_i] << error
+
           error
         end
       end
