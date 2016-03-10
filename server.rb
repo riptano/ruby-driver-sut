@@ -280,7 +280,7 @@ module SUT
   # Parse command-line args
   OPTIONS = {}
   OptionParser.new do |opts|
-    opts.banner = "Usage: server.rb -H [hosts] -V [version] -E [experiment] -S [statement] -G [graphite]"
+    opts.banner = "Usage: server.rb -H [hosts] -V [version] -E [experiment] -S [statement] -G [graphite] -F [frequency]"
 
     opts.on("-H HOSTS", "--hosts", String, "A host to connect to") do |v|
       OPTIONS[:hosts] = v
@@ -297,7 +297,7 @@ module SUT
     opts.on("-G GRAPHITE", "--graphite", String, "The Graphite server's IP") do |v|
       OPTIONS[:graphite] = v
     end
-    opts.on("-F FREQUENCY", "--reporting_frequency", Integer, "Frequency of reporting metrics to Graphite") do |v|
+    opts.on("-F FREQUENCY", "--frequency", Integer, "Frequency of reporting metrics to Graphite") do |v|
       OPTIONS[:frequency] = v
     end
     opts.on_tail("-h", "--help", "Show this message") do
