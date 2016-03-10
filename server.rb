@@ -73,29 +73,31 @@ module SUT
   end
 
   class App
-    def self.run(cluster, metrics)
-      session = cluster.connect
-      select_credentials = session.prepare('SELECT * FROM killrvideo.user_credentials WHERE email = ?')
-      insert_credentials = session.prepare('INSERT INTO killrvideo.user_credentials
-                                            (email, password, userid) VALUES (?, ?, ?)')
-      select_videos = session.prepare('SELECT * FROM killrvideo.videos WHERE videoid = ?')
-      insert_videos = session.prepare('INSERT INTO killrvideo.videos (
-                                       videoid,
-                                       userid,
-                                       name,
-                                       description,
-                                       location,
-                                       location_type,
-                                       preview_thumbnails,
-                                       tags,
-                                       added_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      select_video_event = session.prepare('SELECT * FROM killrvideo.video_event WHERE videoid = ? AND userid = ?')
-      insert_video_event = session.prepare('INSERT INTO killrvideo.video_event
-                                            (videoid, userid, event, event_timestamp, video_timestamp)
-                                            VALUES (?, ?, ?, ?, ?)')
-
-      client = GraphiteAPI.new(graphite: '104.197.106.246', prefix: ['sut', 'ruby-driver', '2_1_5'])
-      thread = Thread.new { GraphiteThread.new.run(client, metrics, 10) }
+    def self.run(session, experiment, statement, metrics)
+      if statement == 'prepared'
+        if experiment == 'user_credentials'
+          select_credentials = session.prepare('SELECT * FROM killrvideo.user_credentials WHERE email = ?')
+          insert_credentials = session.prepare('INSERT INTO killrvideo.user_credentials
+                                                (email, password, userid) VALUES (?, ?, ?)')
+        elsif experiment == 'videos'
+          select_videos = session.prepare('SELECT * FROM killrvideo.videos WHERE videoid = ?')
+          insert_videos = session.prepare('INSERT INTO killrvideo.videos (
+                                           videoid,
+                                           userid,
+                                           name,
+                                           description,
+                                           location,
+                                           location_type,
+                                           preview_thumbnails,
+                                           tags,
+                                           added_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        elsif experiment == 'video_event'
+          select_video_event = session.prepare('SELECT * FROM killrvideo.video_event WHERE videoid = ? AND userid = ?')
+          insert_video_event = session.prepare('INSERT INTO killrvideo.video_event
+                                                (videoid, userid, event, event_timestamp, video_timestamp)
+                                                VALUES (?, ?, ?, ?, ?)')
+        end
+      end
 
       Proc.new do |env|
         begin
@@ -275,14 +277,53 @@ module SUT
     end
   end
 
-  metrics = Metrics.new
-  cluster = Cassandra.cluster
+  # Parse command-line args
+  OPTIONS = {}
+  OptionParser.new do |opts|
+    opts.banner = "Usage: server.rb -H [hosts] -V [version] -E [experiment] -S [statement] -G [graphite]"
 
-  metrics_logger = Logger.new('/mnt/logs/metrics.log')
-  metrics_logger.formatter = proc do |severity, datetime, progname, msg|
-    msg
-  end
+    opts.on("-H HOSTS", "--hosts", String, "A host to connect to") do |v|
+      OPTIONS[:hosts] = v
+    end
+    opts.on("-V VERSION", "--version", String, "Driver version") do |v|
+      OPTIONS[:version] = v
+    end
+    opts.on("-E EXPERIMENT", "--experiment", String, "Experiment name to be run") do |v|
+      OPTIONS[:experiment] = v
+    end
+    opts.on("-S STATEMENT", "--statement", String, "The statement type") do |v|
+      OPTIONS[:statement] = v
+    end
+    opts.on("-G GRAPHITE", "--graphite", String, "The Graphite server's IP") do |v|
+      OPTIONS[:graphite] = v
+    end
+    opts.on("-F FREQUENCY", "--reporting_frequency", Integer, "Frequency of reporting metrics to Graphite") do |v|
+      OPTIONS[:frequency] = v
+    end
+    opts.on_tail("-h", "--help", "Show this message") do
+      puts opts
+      exit
+    end
+  end.parse!
 
+  # Validate command-line args
+  raise OptionParser::MissingArgument, "Must provide a host to connect to '-H'" if OPTIONS[:hosts].nil?
+  raise OptionParser::MissingArgument, "Must provide driver version '-V'" if OPTIONS[:version].nil?
+  raise OptionParser::MissingArgument, "Must provide an experiment '-E'" if OPTIONS[:experiment].nil?
+  raise OptionParser::MissingArgument, "Must provide a statement type '-S'" if OPTIONS[:statement].nil?
+  raise OptionParser::MissingArgument, "Must provide Graphite hosts' IP '-G'" if OPTIONS[:graphite].nil?
+  raise OptionParser::MissingArgument, "Must provide Graphite reporting frequency '-F'" if OPTIONS[:frequency].nil?
+
+  # Setup metrics and cluster
+  metrics = Metrics.new(OPTIONS[:experiment], OPTIONS[:statement])
+  cluster = Cassandra.cluster(hosts: [OPTIONS[:hosts]])
+  session = cluster.connect
+
+  client = GraphiteAPI.new(graphite: OPTIONS[:graphite], prefix: ['sut', 'ruby-driver',
+                                                                  OPTIONS[:version].gsub(/\./, '.' => '_')])
+  thread = Thread.new { GraphiteThread.new.run(client, metrics, OPTIONS[:frequency]) }
+
+  # Export metrics as JSON on exit
   at_exit do
     export_metrics = Hash.new
 
@@ -294,14 +335,13 @@ module SUT
       export_metrics[name]['errors'] = stat.errors
     end
 
-    metrics_logger.info export_metrics.to_json
-
+    File.write('/mnt/logs/metrics.json', export_metrics.to_json)
     cluster.close
-    metrics_logger.close
+    Thread.kill(thread)
   end
 
   TorqueBox::Web.run(
-    rack_app: App.run(cluster, metrics),
+    rack_app: App.run(session, OPTIONS[:experiment], OPTIONS[:statement], metrics),
     host: '0.0.0.0',
     port: 8080
   ).run_from_cli

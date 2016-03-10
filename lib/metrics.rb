@@ -31,22 +31,10 @@ module SUT
 
     attr_accessor :statistics
 
-    def initialize
+    def initialize(experiment, statement_type)
       @statistics = Hash.new
-      @statistics['simple.insert.user_credentials'] = Statistic.new
-      @statistics['simple.select.user_credentials'] = Statistic.new
-      @statistics['prepared.insert.user_credentials'] = Statistic.new
-      @statistics['prepared.select.user_credentials'] = Statistic.new
-
-      #@statistics['simple.insert.videos'] = Statistic.new
-      #@statistics['simple.select.videos'] = Statistic.new
-      #@statistics['prepared.insert.videos'] = Statistic.new
-      #@statistics['prepared.select.videos'] = Statistic.new
-
-      #@statistics['simple.insert.video_event'] = Statistic.new
-      #@statistics['simple.select.video_event'] = Statistic.new
-      #@statistics['prepared.insert.video_event'] = Statistic.new
-      #@statistics['prepared.select.video_event'] = Statistic.new
+      @statistics["#{statement_type}.insert.#{experiment}"] = Statistic.new
+      @statistics["#{statement_type}.select.#{experiment}"] = Statistic.new
     end
 
     def record_metric(statement, future, start_time)
