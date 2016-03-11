@@ -32,11 +32,50 @@ rbenv rehash
 ```
 
 ### Install Dependencies
+
 ```bash
 bundle install
 ```
 
 ## Running the server
+
+Make sure the following schema(s) are created in Cassandra:
+```
+CREATE KEYSPACE killrvideo WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : 1 };
+USE killrvideo;
+
+# User credentials
+CREATE TABLE user_credentials (
+   email text,
+   password text,
+   userid uuid,
+   PRIMARY KEY (email)
+);
+
+# Entity table that will store many videos for a unique user
+CREATE TABLE videos (
+   videoid uuid,
+   userid uuid,
+   name varchar,
+   description varchar,
+   location text,
+   location_type int,
+   preview_thumbnails map<text,text>,  // <position in video, url of thumbnail>
+   tags set<varchar>,
+   added_date timestamp,
+   PRIMARY KEY (videoid)
+);
+
+# Time series wide row with reverse comparator
+CREATE TABLE video_event (
+   videoid uuid,
+   userid uuid,
+   event varchar,
+   event_timestamp timeuuid,
+   video_timestamp bigint,
+   PRIMARY KEY ((videoid,userid),event_timestamp,event)
+) WITH CLUSTERING ORDER BY (event_timestamp DESC,event ASC);
+```
 
 ```bash
 Usage: server.rb -H [hosts] -V [version] -E [experiment] -S [statement] -G [graphite] -F [frequency]

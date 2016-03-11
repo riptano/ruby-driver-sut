@@ -33,7 +33,7 @@ module SUT
     def run(client, metrics, interval)
       percentiles = [50, 60, 70, 80, 90, 95, 99, 99.9]
 
-      while true do
+      loop do
         metrics.statistics.each_pair do |name, stat|
           curr_time = Time.new.to_i
           latency = stat.latency
@@ -58,7 +58,7 @@ module SUT
             client.metrics({ name + '.latency.max' => latency[timestamp].max }, timestamp)
 
             # Throughput
-            client.metrics({ name + '.thoughput' => throughput[timestamp] }, timestamp)
+            client.metrics({ name + '.throughput' => throughput[timestamp] }, timestamp)
 
             i -= 1
           end
@@ -99,6 +99,13 @@ module SUT
         end
       end
 
+      simple_credential_uri = /\/simple\-statements\/credentials\/?(?<email>.*)?/
+      prepared_credential_uri = /\/prepared\-statements\/credentials\/?(?<email>.*)?/
+      simple_videos_uri = /\/simple\-statements\/videos\/?(?<video_id>.*)?/
+      prepared_videos_uri = /\/prepared\-statements\/videos\/?(?<video_id>.*)?/
+      simple_video_event_uri = /simple\-statements\/video\-events(\/(?<video_id>.*)\/(?<user_id>.*))?/
+      prepared_video_event_uri = /prepared\-statements\/video\-events(\/(?<video_id>.*)\/(?<user_id>.*))?/
+
       Proc.new do |env|
         begin
           uri = env['REQUEST_URI']
@@ -122,7 +129,7 @@ module SUT
 
           ## User Credentials
 
-          elsif (matches = /\/simple\-statements\/credentials\/?(?<email>.*)?/.match(uri))
+          elsif (matches = simple_credential_uri.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -145,7 +152,7 @@ module SUT
               Util.not_found_404
             end
 
-          elsif (matches = /\/prepared\-statements\/credentials\/?(?<email>.*)?/.match(uri))
+          elsif (matches = prepared_credential_uri.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -171,7 +178,7 @@ module SUT
 
           ## Videos
 
-          elsif (matches = /\/simple\-statements\/videos\/?(?<video_id>.*)?/.match(uri))
+          elsif (matches = simple_videos_uri.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -194,7 +201,7 @@ module SUT
               Util.not_found_404
             end
 
-          elsif (matches = /\/prepared\-statements\/videos\/?(?<video_id>.*)?/.match(uri))
+          elsif (matches = prepared_videos_uri.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -219,7 +226,7 @@ module SUT
 
           ## Video Event
 
-          elsif (matches = /simple\-statements\/video\-events(\/(?<video_id>.*)\/(?<user_id>.*))?/.match(uri))
+          elsif (matches = simple_video_event_uri.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -242,7 +249,7 @@ module SUT
               Util.not_found_404
             end
 
-          elsif (matches = /prepared\-statements\/video\-events(\/(?<video_id>.*)\/(?<user_id>.*))?/.match(uri))
+          elsif (matches = prepared_video_event_uri.match(uri))
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
@@ -270,8 +277,8 @@ module SUT
             Util.not_found_404
           end
         rescue => e
-          puts "#{e.class.name}: #{e.message}"
-          Util.server_error_500("#{e.class.name}: #{e.message}")
+          puts "#{e.class.name}: #{e.message}. #{e.backtrace.inspect}"
+          Util.server_error_500("#{e.class.name}: #{e.message}. #{e.backtrace.inspect}")
         end
       end
     end
