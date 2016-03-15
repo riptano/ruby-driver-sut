@@ -34,6 +34,7 @@ rbenv rehash
 ### Install Dependencies
 
 ```bash
+gem install bundler -v 1.7.12
 bundle install
 ```
 
