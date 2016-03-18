@@ -35,6 +35,7 @@ module SUT
       @statistics = Hash.new
       @statistics["#{statement_type}.insert.#{experiment}"] = Statistic.new
       @statistics["#{statement_type}.select.#{experiment}"] = Statistic.new
+      @lock = ::Monitor.new
     end
 
     def record_metric(statement, future, start_time)
@@ -42,13 +43,17 @@ module SUT
         curr_time = Time.new
         if value
           latency = (curr_time - start_time) * 1000
-          @statistics[statement].latency[curr_time.to_i]  << latency
-          @statistics[statement].throughput[curr_time.to_i] += 1
+          @lock.synchronize do
+            @statistics[statement].latency[curr_time.to_i] << latency
+            @statistics[statement].throughput[curr_time.to_i] += 1
+          end
 
           value
         else
-          @statistics[statement].num_errors += 1
-          @statistics[statement].errors[curr_time.to_i] << error
+          @lock.synchronize do
+            @statistics[statement].num_errors += 1
+            @statistics[statement].errors[curr_time.to_i] << error
+          end
 
           error
         end

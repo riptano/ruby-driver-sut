@@ -16,6 +16,7 @@
 # limitations under the License.
 #++
 
+require 'thread'
 require 'cassandra'
 require 'torquebox/web'
 require 'json'
@@ -73,7 +74,7 @@ module SUT
   end
 
   class App
-    def self.run(session, experiment, statement, metrics)
+    def self.run(session, experiment, statement, metrics, multiplier)
       if statement == 'prepared'
         if experiment == 'user_credentials'
           select_credentials = session.prepare('SELECT * FROM killrvideo.user_credentials WHERE email = ?')
@@ -133,16 +134,25 @@ module SUT
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
-              start_time = Time.new
-              future = Credentials.insert_credentials_simple(session, input['email'],
-                                                             input['password'] ? input['password'] : input['email'])
-              metrics.record_metric('simple.insert.user_credentials', future, start_time)
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = Credentials.insert_credentials_simple(session, input['email'],
+                                                               input['password'] ? input['password'] : input['email'])
+                metrics.record_metric('simple.insert.user_credentials', future, start_time)
+                futures << future
+              end
+              Cassandra::Future.all(futures).get
               Util.ok_200_json
             when 'GET'
               start_time = Time.new
-              future = Credentials.get_credentials_simple(session, matches['email'])
-              metrics.record_metric('simple.select.user_credentials', future, start_time)
-              rows = future.get
+              futures = []
+              multiplier.times do
+                future = Credentials.get_credentials_simple(session, matches['email'])
+                metrics.record_metric('simple.select.user_credentials', future, start_time)
+                futures << future
+              end
+              rows = Cassandra::Future.all(futures).get.first
               if rows.empty?
                 Util.not_found_404
               else
@@ -156,17 +166,25 @@ module SUT
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
-              start_time = Time.new
-              future = Credentials.insert_credentials_prepared(session, insert_credentials, input['email'],
-                                                             input['password'] ? input['password'] : input['email'])
-              metrics.record_metric('prepared.insert.user_credentials', future, start_time)
-              future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = Credentials.insert_credentials_prepared(session, insert_credentials, input['email'],
+                                                               input['password'] ? input['password'] : input['email'])
+                metrics.record_metric('prepared.insert.user_credentials', future, start_time)
+                futures << future
+              end
+              Cassandra::Future.all(futures).get
               Util.ok_200_json
             when 'GET'
-              start_time = Time.new
-              future = Credentials.get_credentials_prepared(session, select_credentials, matches['email'])
-              metrics.record_metric('prepared.select.user_credentials', future, start_time)
-              rows = future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = Credentials.get_credentials_prepared(session, select_credentials, matches['email'])
+                metrics.record_metric('prepared.select.user_credentials', future, start_time)
+                futures << future
+              end
+              rows = Cassandra::Future.all(futures).get.first
               if rows.empty?
                 Util.not_found_404
               else
@@ -182,16 +200,24 @@ module SUT
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
-              start_time = Time.new
-              future = Videos.insert_videos_simple(session, input)
-              metrics.record_metric('simple.insert.videos', future, start_time)
-              future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = Videos.insert_videos_simple(session, input)
+                metrics.record_metric('simple.insert.videos', future, start_time)
+                futures << future
+              end
+              Cassandra::Future.all(futures).get
               Util.ok_200_json
             when 'GET'
-              start_time = Time.new
-              future = Videos.get_videos_simple(session, matches['video_id'])
-              metrics.record_metric('simple.select.videos', future, start_time)
-              rows = future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = Videos.get_videos_simple(session, matches['video_id'])
+                metrics.record_metric('simple.select.videos', future, start_time)
+                futures << future
+              end
+              rows = Cassandra::Future.all(futures).get.first
               if rows.empty?
                 Util.not_found_404
               else
@@ -205,16 +231,24 @@ module SUT
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
-              start_time = Time.new
-              future = Videos.insert_videos_prepared(session, insert_videos, input)
-              metrics.record_metric('prepared.insert.videos', future, start_time)
-              future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = Videos.insert_videos_prepared(session, insert_videos, input)
+                metrics.record_metric('prepared.insert.videos', future, start_time)
+                futures << future
+              end
+              Cassandra::Future.all(futures).get
               Util.ok_200_json
             when 'GET'
-              start_time = Time.new
-              future = Videos.get_videos_prepared(session, select_videos, matches['video_id'])
-              metrics.record_metric('prepared.select.videos', future, start_time)
-              rows = future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = Videos.get_videos_prepared(session, select_videos, matches['video_id'])
+                metrics.record_metric('prepared.select.videos', future, start_time)
+                futures << future
+              end
+              rows = Cassandra::Future.all(futures).get.first
               if rows.empty?
                 Util.not_found_404
               else
@@ -230,16 +264,24 @@ module SUT
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
-              start_time = Time.new
-              future = VideoEvent.insert_video_event_simple(session, input)
-              metrics.record_metric('simple.insert.video_event', future, start_time)
-              future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = VideoEvent.insert_video_event_simple(session, input)
+                metrics.record_metric('simple.insert.video_event', future, start_time)
+                futures << future
+              end
+              Cassandra::Future.all(futures).get
               Util.ok_200_json
             when 'GET'
-              start_time = Time.new
-              future = VideoEvent.get_video_event_simple(session, matches['video_id'], matches['user_id'])
-              metrics.record_metric('simple.select.video_event', future, start_time)
-              rows = future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = VideoEvent.get_video_event_simple(session, matches['video_id'], matches['user_id'])
+                metrics.record_metric('simple.select.video_event', future, start_time)
+                futures << future
+              end
+              rows = Cassandra::Future.all(futures).get.first
               if rows.empty?
                 Util.not_found_404
               else
@@ -253,17 +295,25 @@ module SUT
             case env['REQUEST_METHOD']
             when 'POST'
               input = JSON.parse(env['rack.input'].read)
-              start_time = Time.new
-              future = VideoEvent.insert_video_event_prepared(session, insert_video_event, input)
-              metrics.record_metric('prepared.insert.video_event', future, start_time)
-              future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = VideoEvent.insert_video_event_prepared(session, insert_video_event, input)
+                metrics.record_metric('prepared.insert.video_event', future, start_time)
+                futures << future
+              end
+              Cassandra::Future.all(futures).get
               Util.ok_200_json
             when 'GET'
-              start_time = Time.new
-              future = VideoEvent.get_video_event_prepared(session, select_video_event,
-                                                           matches['video_id'], matches['user_id'])
-              metrics.record_metric('prepared.select.video_event', future, start_time)
-              rows = future.get
+              futures = []
+              multiplier.times do
+                start_time = Time.new
+                future = VideoEvent.get_video_event_prepared(session, select_video_event,
+                                                             matches['video_id'], matches['user_id'])
+                metrics.record_metric('prepared.select.video_event', future, start_time)
+                futures << future
+              end
+              rows = Cassandra::Future.all(futures).get.first
               if rows.empty?
                 Util.not_found_404
               else
@@ -287,7 +337,7 @@ module SUT
   # Parse command-line args
   OPTIONS = {}
   OptionParser.new do |opts|
-    opts.banner = "Usage: server.rb -H [hosts] -V [version] -E [experiment] -S [statement] -G [graphite] -F [frequency]"
+    opts.banner = "Usage: server.rb -H [hosts] -V [version] -E [experiment] -S [statement] -G [graphite] -F [frequency] -M [multiplier]"
 
     opts.on("-H HOSTS", "--hosts", String, "A host to connect to") do |v|
       OPTIONS[:hosts] = v
@@ -307,6 +357,9 @@ module SUT
     opts.on("-F FREQUENCY", "--frequency", Integer, "Frequency of reporting metrics to Graphite") do |v|
       OPTIONS[:frequency] = v
     end
+    opts.on("-M MULTIPLIER", "--multiplier", Integer, "Multipler http-request->cql query") do |v|
+      OPTIONS[:multiplier] = v
+    end
     opts.on_tail("-h", "--help", "Show this message") do
       puts opts
       exit
@@ -320,6 +373,7 @@ module SUT
   raise OptionParser::MissingArgument, "Must provide a statement type '-S'" if OPTIONS[:statement].nil?
   raise OptionParser::MissingArgument, "Must provide Graphite hosts' IP '-G'" if OPTIONS[:graphite].nil?
   raise OptionParser::MissingArgument, "Must provide Graphite reporting frequency '-F'" if OPTIONS[:frequency].nil?
+  raise OptionParser::MissingArgument, "Must provide multiplier '-M'" if OPTIONS[:multiplier].nil?
 
   # Setup metrics and cluster
   metrics = Metrics.new(OPTIONS[:experiment], OPTIONS[:statement])
@@ -329,6 +383,7 @@ module SUT
   client = GraphiteAPI.new(graphite: OPTIONS[:graphite], prefix: ['sut', 'ruby-driver',
                                                                   OPTIONS[:version].gsub(/\./, '.' => '_')])
   thread = Thread.new { GraphiteThread.new.run(client, metrics, OPTIONS[:frequency]) }
+  thread.abort_on_exception = true
 
   # Export metrics as JSON on exit
   at_exit do
@@ -348,7 +403,7 @@ module SUT
   end
 
   TorqueBox::Web.run(
-    rack_app: App.run(session, OPTIONS[:experiment], OPTIONS[:statement], metrics),
+    rack_app: App.run(session, OPTIONS[:experiment], OPTIONS[:statement], metrics, OPTIONS[:multiplier]),
     host: '0.0.0.0',
     port: 8080
   ).run_from_cli
