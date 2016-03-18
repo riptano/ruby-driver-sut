@@ -24,17 +24,18 @@ exec $SHELL
 rbenv install jruby-1.7.24
 rbenv global jruby-1.7.24
 rbenv rehash
+gem install bundler -v 1.7.12
 
 # Install JRuby 9k
 rbenv install jruby-9.0.5.0
 rbenv global jruby-9.0.5.0
 rbenv rehash
+gem install bundler -v 1.7.12
 ```
 
 ### Install Dependencies
 
 ```bash
-gem install bundler -v 1.7.12
 bundle install
 ```
 
@@ -79,7 +80,7 @@ CREATE TABLE video_event (
 ```
 
 ```bash
-Usage: server.rb -H [hosts] -V [version] -E [experiment] -S [statement] -G [graphite] -F [frequency]
+Usage: server.rb -H [hosts] -V [version] -E [experiment] -S [statement] -G [graphite] -F [frequency] -M [multiplier]
     -H, --hosts HOSTS                A host to connect to
     -V, --version VERSION            Driver version
     -E, --experiment EXPERIMENT      Experiment name to be run
@@ -89,5 +90,5 @@ Usage: server.rb -H [hosts] -V [version] -E [experiment] -S [statement] -G [grap
     -h, --help                       Show this message
 
 # Example
-ruby -I ../ruby-driver/lib/ server.rb -H 127.0.0.1 -V 3.0.0 -E video_event -S prepared -G 104.197.106.246 -F 10
+ruby -I ../ruby-driver/lib/ server.rb -H 127.0.0.1 -V 3.0.0 -E video_event -S prepared -G 104.197.106.246 -F 10 -M 1000
 ```
