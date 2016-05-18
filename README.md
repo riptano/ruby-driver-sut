@@ -21,14 +21,14 @@ echo 'export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH"' >> ~/.bashrc
 exec $SHELL
 
 # Install JRuby 1.7
-rbenv install jruby-1.7.24
-rbenv global jruby-1.7.24
+rbenv install jruby-1.7.25
+rbenv global jruby-1.7.25
 rbenv rehash
 gem install bundler -v 1.7.12
 
 # Install JRuby 9k
-rbenv install jruby-9.0.5.0
-rbenv global jruby-9.0.5.0
+rbenv install jruby-9.1.0.0
+rbenv global jruby-9.1.0.0
 rbenv rehash
 gem install bundler -v 1.7.12
 ```
